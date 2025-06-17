@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&display=swap');
+
+@import "tailwindcss";
+
+@layer components {
+  .all-\[unset\] {
+    all: unset;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+    
+    --bluish-purple: rgba(104, 105, 172, 1);
+    --body-font-family: "Lato", Helvetica;
+    --body-font-size: 16px;
+    --body-font-style: normal;
+    --body-font-weight: 400;
+    --body-letter-spacing: 0px;
+    --body-line-height: normal;
+    --dark-violet: rgba(67, 13, 75, 1);
+    --deep-magenta: rgba(124, 52, 126, 1);
+    --heading-bold-font-family: "Lato", Helvetica;
+    --heading-bold-font-size: 28px;
+    --heading-bold-font-style: normal;
+    --heading-bold-font-weight: 700;
+    --heading-bold-letter-spacing: 0px;
+    --heading-bold-line-height: normal;
+    --heading-regular-font-family: "Lato", Helvetica;
+    --heading-regular-font-size: 28px;
+    --heading-regular-font-style: normal;
+    --heading-regular-font-weight: 400;
+    --heading-regular-letter-spacing: 0px;
+    --heading-regular-line-height: normal;
+    --midnight-purple: rgba(34, 6, 54, 1);
+    --pink: rgba(245, 213, 224, 1);
+    --sub-bold-font-family: "Lato", Helvetica;
+    --sub-bold-font-size: 20px;
+    --sub-bold-font-style: normal;
+    --sub-bold-font-weight: 700;
+    --sub-bold-letter-spacing: 0px;
+    --sub-bold-line-height: normal;
+    --sub-regular-font-family: "Lato", Helvetica;
+    --sub-regular-font-size: 20px;
+    --sub-regular-font-style: normal;
+    --sub-regular-font-weight: 400;
+    --sub-regular-letter-spacing: 0px;
+    --sub-regular-line-height: normal;
+  }
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
