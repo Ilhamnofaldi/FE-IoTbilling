@@ -77,7 +77,7 @@ const CategoryRow: React.FC<{ category: Category }> = ({ category }) => {
     );
 }
 
-// Komponen Modal Tambah Kategori
+// Komponen Modal untuk Tambah Kategori
 const AddCategoryModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
     const [formData, setFormData] = useState({
         name: '',
@@ -85,12 +85,17 @@ const AddCategoryModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ 
         price: ''
     });
 
-    const handleInputChange = (field: string, value: string) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
     };
 
-    const handleSubmit = () => {
-        // TODO: Implement add category logic
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        // TODO: Implement API call to add category
         console.log('Adding category:', formData);
         onClose();
         setFormData({ name: '', period: '', price: '' });
@@ -99,68 +104,80 @@ const AddCategoryModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="flex flex-col w-full max-w-[480px] items-start gap-8 p-10 relative bg-white rounded-lg">
-                <div className="items-center justify-between flex relative self-stretch w-full flex-[0_0_auto]">
-                    <div className="relative w-fit mt-[-1.00px] font-bold text-[#430d4b] text-sm tracking-[0] leading-[normal]">
-                        Tambah Kategori
-                    </div>
-                    <button onClick={onClose} className="relative w-[15.5px] h-[15.5px] mr-[-0.75px] hover:opacity-70 transition-opacity">
-                        <X size={16} color="#777777" strokeWidth={1.5} />
-                    </button>
-                </div>
-
-                <div className="flex-col items-start gap-8 flex relative self-stretch w-full flex-[0_0_auto]">
-                    <div className="flex-col items-start gap-5 flex relative self-stretch w-full flex-[0_0_auto]">
-                        <div className="flex-col items-start gap-2 flex relative self-stretch w-full flex-[0_0_auto]">
-                            <div className="relative self-stretch mt-[-1.00px] font-normal text-[#7c347e] text-sm tracking-[0] leading-[normal]">
-                                Nama Kategori
-                            </div>
-                            <input
-                                type="text"
-                                value={formData.name}
-                                onChange={(e) => handleInputChange('name', e.target.value)}
-                                placeholder="Ketik nama kategori"
-                                className="items-center gap-2.5 px-4 py-3 bg-[#f9f9f9] rounded-lg flex relative self-stretch w-full flex-[0_0_auto] font-normal text-[#777777] text-sm tracking-[0] leading-[normal] border-none outline-none focus:ring-2 focus:ring-[#430d4b] focus:ring-opacity-20"
-                            />
-                        </div>
-
-                        <div className="flex-col items-start gap-2 flex relative self-stretch w-full flex-[0_0_auto]">
-                            <div className="relative self-stretch mt-[-1.00px] font-normal text-[#7c347e] text-sm tracking-[0] leading-[normal]">
-                                Periode
-                            </div>
-                            <input
-                                type="text"
-                                value={formData.period}
-                                onChange={(e) => handleInputChange('period', e.target.value)}
-                                placeholder="Ketik periode"
-                                className="items-center gap-2.5 px-4 py-3 bg-[#f9f9f9] rounded-lg flex relative self-stretch w-full flex-[0_0_auto] font-normal text-[#777777] text-sm tracking-[0] leading-[normal] border-none outline-none focus:ring-2 focus:ring-[#430d4b] focus:ring-opacity-20"
-                            />
-                        </div>
-
-                        <div className="flex-col items-start gap-2 flex relative self-stretch w-full flex-[0_0_auto]">
-                            <div className="relative self-stretch mt-[-1.00px] font-normal text-[#7c347e] text-sm tracking-[0] leading-[normal]">
-                                Harga Sewa
-                            </div>
-                            <input
-                                type="number"
-                                value={formData.price}
-                                onChange={(e) => handleInputChange('price', e.target.value)}
-                                placeholder="Ketik harga sewa"
-                                className="items-center gap-2.5 px-4 py-3 bg-[#f9f9f9] rounded-lg flex relative self-stretch w-full flex-[0_0_auto] font-normal text-[#777777] text-sm tracking-[0] leading-[normal] border-none outline-none focus:ring-2 focus:ring-[#430d4b] focus:ring-opacity-20"
-                            />
-                        </div>
-                    </div>
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/20 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-[#430d4b]">Tambah Kategori Baru</h2>
                     <button
-                        onClick={handleSubmit}
-                        className="items-center justify-center gap-2.5 px-4 py-3 bg-[#430d4b] rounded-lg flex relative self-stretch w-full flex-[0_0_auto] hover:bg-[#5a1a63] transition-colors"
+                        onClick={onClose}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                     >
-                        <div className="relative w-fit mt-[-1.00px] font-normal text-white text-sm tracking-[0] leading-[normal]">
-                            Tambahkan kategori
-                        </div>
+                        <X size={20} className="text-gray-500" />
                     </button>
                 </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Nama Kategori
+                        </label>
+                        <input
+                            type="text"
+                            name="name"
+                            value={formData.name}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#430d4b] focus:border-transparent"
+                            placeholder="Masukkan nama kategori"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Periode
+                        </label>
+                        <input
+                            type="text"
+                            name="period"
+                            value={formData.period}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#430d4b] focus:border-transparent"
+                            placeholder="Contoh: 60 Menit, 2 Jam"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Harga Sewa (IDR)
+                        </label>
+                        <input
+                            type="number"
+                            name="price"
+                            value={formData.price}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#430d4b] focus:border-transparent"
+                            placeholder="Masukkan harga sewa"
+                            required
+                        />
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                            Batal
+                        </button>
+                        <button
+                            type="submit"
+                            className="flex-1 px-4 py-2 bg-[#430d4b] text-white rounded-lg hover:bg-[#5a1a63] transition-colors"
+                        >
+                            Simpan
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );
@@ -232,7 +249,7 @@ export const KategoriPage = (): JSX.Element => {
                     </div>
                 </div>
             </div>
-            
+
             {/* Modal Tambah Kategori */}
             <AddCategoryModal isOpen={isModalOpen} onClose={closeModal} />
         </div>

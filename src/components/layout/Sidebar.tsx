@@ -24,7 +24,7 @@ const Sidebar: React.FC = () => {
       {/* Toggle Button */}
       <button 
         onClick={toggleSidebar}
-        className="relative w-[16px] h-[14px] hover:opacity-70 transition-opacity cursor-pointer"
+        className="relative w-[16px] h-[14px] ml-2 hover:opacity-70 transition-opacity cursor-pointer"
       >
         <img className="w-full h-full" alt="Toggle Menu" src="/hamburger-menu.svg" />
       </button>
