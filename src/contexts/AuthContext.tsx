@@ -1,19 +1,18 @@
-"use client"
-
 import type React from "react"
-import { createContext, useContext, useState, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 
 interface User {
   id: string
-  name: string
   email: string
-  avatar: string
-  status: "online" | "offline"
+  type: string
 }
 
 interface AuthContextType {
   user: User | null
-  login: (email: string) => Promise<void>
+  accessToken: string | null
+  refreshToken: string | null
+  isLoading: boolean
+  login: (email: string, password: string) => Promise<void>
   logout: () => void
   updateUser: (userData: Partial<User>) => void
 }
@@ -33,27 +32,66 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>({
-    id: "1",
-    name: "Joe Natania",
-    email: "joenatania@gmail.com",
-    avatar: "https://placehold.co/200x200/2d3748/ffffff?text=JN",
-    status: "online",
-  })
+  const [user, setUser] = useState<User | null>(null)
+  const [accessToken, setAccessToken] = useState<string | null>(localStorage.getItem('accessToken'))
+  const [refreshToken, setRefreshToken] = useState<string | null>(localStorage.getItem('refreshToken'))
+  const [isLoading, setIsLoading] = useState(true)
 
-  const login = async (email: string) => {
-    // Simulate login
-    setUser({
-      id: "1",
-      name: "Joe Natania",
-      email: email,
-      avatar: "https://placehold.co/200x200/2d3748/ffffff?text=JN",
-      status: "online",
-    })
+  // Initialize user data from localStorage on app start
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user')
+    if (storedUser && accessToken) {
+      try {
+        setUser(JSON.parse(storedUser))
+      } catch (error) {
+        console.error('Error parsing stored user data:', error)
+        localStorage.removeItem('user')
+      }
+    }
+    setIsLoading(false)
+  }, [accessToken])
+
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await fetch('http://34.101.143.2:3000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Login failed')
+      }
+
+      const data = await response.json()
+      
+      // Set user data
+      setUser(data.data.user)
+      
+      // Set tokens
+      setAccessToken(data.data.accessToken)
+      setRefreshToken(data.data.refreshToken)
+      
+      // Store tokens and user data in localStorage
+      localStorage.setItem('accessToken', data.data.accessToken)
+      localStorage.setItem('refreshToken', data.data.refreshToken)
+      localStorage.setItem('user', JSON.stringify(data.data.user))
+      
+    } catch (error) {
+      console.error('Login error:', error)
+      throw error
+    }
   }
 
   const logout = () => {
     setUser(null)
+    setAccessToken(null)
+    setRefreshToken(null)
+    localStorage.removeItem('accessToken')
+    localStorage.removeItem('refreshToken')
+    localStorage.removeItem('user')
   }
 
   const updateUser = (userData: Partial<User>) => {
@@ -62,5 +100,5 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
-  return <AuthContext.Provider value={{ user, login, logout, updateUser }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, accessToken, refreshToken, isLoading, login, logout, updateUser }}>{children}</AuthContext.Provider>
 }

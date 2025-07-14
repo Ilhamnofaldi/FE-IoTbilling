@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
 import { AuthProvider } from "./contexts/AuthContext"
+import ProtectedRoute from "./components/ProtectedRoute"
+import PublicRoute from "./components/PublicRoute"
 import LoginPage from "./pages/LoginPage"
 import DashboardLayout from "./components/layout/DashboardLayout"
 import HomePage from "./pages/HomePage"
@@ -15,8 +17,16 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<DashboardLayout />}>
+          <Route path="/login" element={
+            <PublicRoute>
+              <LoginPage />
+            </PublicRoute>
+          } />
+          <Route path="/" element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }>
             <Route index element={<HomePage />} />
             <Route path="perangkat" element={<PerangkatPage />} />
             <Route path="kategori" element={<KategoriPage />} />

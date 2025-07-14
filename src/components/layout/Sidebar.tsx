@@ -2,8 +2,15 @@ import type React from "react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
+// Interface untuk item menu
+interface MenuItem {
+  icon: string;
+  label: string;
+  path: string;
+}
+
 // Definisikan item menu dalam sebuah array agar mudah dikelola
-const menuItems = [
+const menuItems: MenuItem[] = [
   { icon: "/dashboard-icon.svg", label: "Dashboard", path: "/" },
   { icon: "/kategori-icon.svg", label: "Kategori", path: "/kategori" },
   { icon: "/perangkat-icon.svg", label: "Perangkat", path: "/perangkat" },
@@ -41,7 +48,6 @@ const Sidebar: React.FC = () => {
         <div className="flex-col items-start gap-2 sm:gap-4 flex relative self-stretch w-full flex-[0_0_auto]">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
-            const isSvgIcon = typeof item.icon === 'string';
 
             return (
               <Link
@@ -49,11 +55,7 @@ const Sidebar: React.FC = () => {
                 to={item.path}
                 className={`items-center rounded-lg flex relative self-stretch w-full flex-[0_0_auto] transition-all duration-200 ${isActive ? "bg-[#f5d5e0]" : "hover:bg-gray-50"} ${isCollapsed ? 'justify-center py-3 sm:py-4' : 'p-3 sm:p-4 gap-2'}`}
               >
-                {isSvgIcon ? (
-                  <img src={item.icon} alt={item.label} className="relative w-[14px] h-[14px] sm:w-[16px] sm:h-[16px] flex-shrink-0" />
-                ) : (
-                  <item.icon className="relative w-[14px] h-[14px] sm:w-[16px] sm:h-[16px] flex-shrink-0" />
-                )}
+                <img src={item.icon} alt={item.label} className="relative w-[14px] h-[14px] sm:w-[16px] sm:h-[16px] flex-shrink-0" />
                 {!isCollapsed && (
                   <div className={`relative w-fit mt-[-1.00px] font-normal text-sm sm:text-base tracking-[0] leading-[normal] whitespace-nowrap font-['Lato'] ${
                     isActive ? "text-[#430d4b]" : "text-[#430d4b]"
