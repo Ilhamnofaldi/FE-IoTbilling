@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 // 1. Mengimpor ikon yang relevan dari lucide-react
-import { UserPlus, UserX, Trash2, CheckCircle2, XCircle, Ban, ChevronDown } from 'lucide-react';
+import { UserPlus, UserX, Trash2, CheckCircle2, XCircle, Ban, ChevronDown, X } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import Swal from 'sweetalert2';
 
 // 2. Definisikan tipe data yang jelas untuk User
 type User = {
@@ -99,8 +101,164 @@ const UserRow: React.FC<{ user: User }> = ({ user }) => {
     );
 };
 
+// Komponen Modal untuk Tambah User
+const AddUserModal: React.FC<{ isOpen: boolean; onClose: () => void; onUserAdded: () => void }> = ({ isOpen, onClose, onUserAdded }) => {
+    const [formData, setFormData] = useState({
+        email: '',
+        password: '',
+        type: 'user'
+    });
+    const [loading, setLoading] = useState(false);
+    const { accessToken } = useAuth();
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        
+        try {
+            const response = await fetch('http://34.101.143.2:3000/api/user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to add user');
+            }
+
+            const result = await response.json();
+            
+            Swal.fire({
+                title: 'Berhasil!',
+                text: 'User baru berhasil ditambahkan.',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            
+            onUserAdded();
+            onClose();
+            setFormData({ email: '', password: '', type: 'user' });
+        } catch (error) {
+            console.error('Error adding user:', error);
+            Swal.fire({
+                title: 'Error!',
+                text: 'Gagal menambahkan user. Silakan coba lagi.',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/20 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-[#430d4b]">Tambah User Baru</h2>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                        <X size={20} className="text-gray-500" />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Email
+                        </label>
+                        <input
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#430d4b] focus:border-transparent"
+                            placeholder="Masukkan email user"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Password
+                        </label>
+                        <input
+                            type="password"
+                            name="password"
+                            value={formData.password}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#430d4b] focus:border-transparent"
+                            placeholder="Masukkan password"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Tipe User
+                        </label>
+                        <select
+                            name="type"
+                            value={formData.type}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#430d4b] focus:border-transparent"
+                            required
+                        >
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                            disabled={loading}
+                        >
+                            Batal
+                        </button>
+                        <button
+                            type="submit"
+                            className="flex-1 px-4 py-2 bg-[#430d4b] text-white rounded-lg hover:bg-[#5a1a63] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={loading}
+                        >
+                            {loading ? 'Menyimpan...' : 'Simpan'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 // Komponen utama untuk Halaman Kelola User
-const UserPage = (): JSX.Element => {
+const UserPage = (): React.ReactElement => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const openModal = () => setIsModalOpen(true);
+    const closeModal = () => setIsModalOpen(false);
+    const handleUserAdded = () => {
+        // TODO: Refresh user list from API
+        console.log('User added, refreshing list...');
+    };
+
     return (
         <div className="bg-none p-2 sm:p-4 lg:p-6 xl:p-8 w-full min-h-screen flex flex-col gap-4 sm:gap-6">
             
@@ -109,7 +267,10 @@ const UserPage = (): JSX.Element => {
                 <h1 className="font-bold text-[#430d4b] text-xl sm:text-2xl">
                     Kelola User
                 </h1>
-                <button className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#430d4b] text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-[#5a1a63] transition-colors shadow-sm w-full sm:w-auto justify-center">
+                <button 
+                    onClick={openModal}
+                    className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#430d4b] text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-[#5a1a63] transition-colors shadow-sm w-full sm:w-auto justify-center"
+                >
                     <UserPlus size={14} className="sm:w-4 sm:h-4" />
                     <span>Tambah User</span>
                 </button>
@@ -157,6 +318,9 @@ const UserPage = (): JSX.Element => {
                     </div>
                 </div>
             </div>
+
+            {/* Modal Tambah User */}
+            <AddUserModal isOpen={isModalOpen} onClose={closeModal} onUserAdded={handleUserAdded} />
         </div>
     );
 };

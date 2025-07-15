@@ -5,6 +5,8 @@ interface User {
   id: string
   email: string
   type: string
+  name?: string
+  avatar?: string
 }
 
 interface AuthContextType {
@@ -96,7 +98,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const updateUser = (userData: Partial<User>) => {
     if (user) {
-      setUser({ ...user, ...userData })
+      const updatedUser = { ...user, ...userData }
+      setUser(updatedUser)
+      localStorage.setItem('user', JSON.stringify(updatedUser))
     }
   }
 

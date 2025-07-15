@@ -5,10 +5,9 @@ import AuthMiddleware from '../lib/authMiddleware'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
-  className?: string
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, accessToken, isLoading } = useAuth()
 
   // Show loading while checking authentication

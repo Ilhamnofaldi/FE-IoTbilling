@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 
 import { useState } from "react"
@@ -14,17 +12,20 @@ const LoginPage = () => {
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState("")
   const { login } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError("") // Clear previous error
     try {
       await login(email, password)
       navigate("/")
     } catch (error) {
       console.error("Login failed:", error)
+      setError("Email atau password yang Anda masukkan salah. Silakan coba lagi.")
     } finally {
       setLoading(false)
     }
@@ -44,15 +45,34 @@ const LoginPage = () => {
             <p className="text-gray-600 text-sm">Masuk ke akun Anda untuk melanjutkan</p>
           </div>
 
+          {/* Error Alert */}
+          {error && (
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg mb-6">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-red-700 font-medium">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="flex items-center text-sm font-medium text-gray-700 mb-3">
+              <label htmlFor="email" className="flex items-center text-sm font-medium text-gray-700 mb-3">
                 <Mail className="w-4 h-4 mr-2 text-purple-600" />
                 Email
               </label>
               <div className="relative group">
                 <Input
                   type="email"
+                  name="email"
+                  id="email"
+                  autoComplete="email"
                   placeholder="Ketik email anda"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -64,13 +84,16 @@ const LoginPage = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="flex items-center text-sm font-medium text-gray-700 mb-3">
+              <label htmlFor="password" className="flex items-center text-sm font-medium text-gray-700 mb-3">
                 <Lock className="w-4 h-4 mr-2 text-purple-600" />
                 Password
               </label>
               <div className="relative group">
                 <Input
                   type={showPassword ? "text" : "password"}
+                  name="password"
+                  id="password"
+                  autoComplete="current-password"
                   placeholder="Ketik password anda"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

@@ -7,7 +7,7 @@ interface PublicRouteProps {
   children: React.ReactNode
 }
 
-const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
+const PublicRoute = ({ children }: PublicRouteProps) => {
   const { user, accessToken, isLoading } = useAuth()
 
   // Show loading while checking authentication
