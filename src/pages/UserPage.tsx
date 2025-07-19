@@ -1,47 +1,36 @@
-import React, { useState } from 'react';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import React, { useState, useEffect } from 'react';
 // 1. Mengimpor ikon yang relevan dari lucide-react
 import { UserPlus, UserX, Trash2, CheckCircle2, XCircle, Ban, ChevronDown, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Swal from 'sweetalert2';
 
-// 2. Definisikan tipe data yang jelas untuk User
+// 2. Definisikan tipe data yang jelas untuk User berdasarkan API response
 type User = {
-    id: number;
+    id: string;
     email: string;
-    name: string;
-    status: 'Online' | 'Offline' | 'Blocked';
+    type: string;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
 };
 
-// 3. Simulasikan data user yang akan datang dari API
-const userData: User[] = [
-    { id: 1, email: 'annisa.putri@example.com', name: 'Annisa Nabila Putri', status: 'Online' },
-    { id: 2, email: 'budi.santoso@example.com', name: 'Budi Santoso', status: 'Offline' },
-    { id: 3, email: 'citra.lestari@example.com', name: 'Citra Lestari', status: 'Blocked' },
-    { id: 4, email: 'dewi.sartika@example.com', name: 'Dewi Sartika', status: 'Online' },
-    { id: 5, email: 'eko.prasetyo@example.com', name: 'Eko Prasetyo', status: 'Offline' },
-];
-
 // Komponen untuk menampilkan status dengan ikon dan warna yang sesuai
-const StatusBadge: React.FC<{ status: User['status'] }> = ({ status }) => {
+const StatusBadge: React.FC<{ isActive: boolean }> = ({ isActive }) => {
     const statusStyles = {
-        Online: {
+        active: {
             icon: <CheckCircle2 size={14} />,
-            text: 'Online',
+            text: 'Active',
             className: 'bg-green-100 text-green-700',
         },
-        Offline: {
-            icon: <XCircle size={14} />,
-            text: 'Offline',
-            className: 'bg-gray-100 text-gray-600',
-        },
-        Blocked: {
+        blocked: {
             icon: <Ban size={14} />,
             text: 'Blocked',
             className: 'bg-red-100 text-red-700',
         },
     };
 
-    const style = statusStyles[status];
+    const style = isActive ? statusStyles.active : statusStyles.blocked;
 
     return (
         <div className={`inline-flex items-center justify-center w-20 sm:w-24 gap-1.5 px-2 py-1.5 rounded-full text-xs font-medium ${style.className}`}>
@@ -52,24 +41,40 @@ const StatusBadge: React.FC<{ status: User['status'] }> = ({ status }) => {
 };
 
 // Komponen untuk satu baris data user
-const UserRow: React.FC<{ user: User }> = ({ user }) => {
+const UserRow: React.FC<{ user: User; index: number; onBlockUser: (userId: string, isActive: boolean) => void }> = ({ user, index, onBlockUser }) => {
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('id-ID', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
+
     return (
         <div className="w-full text-sm text-gray-800 border-b border-gray-100">
             {/* Mobile Layout (< md) */}
             <div className="md:hidden p-3 space-y-2">
                 <div className="flex justify-between items-start">
                     <div className="flex-1">
-                        <div className="font-medium text-sm text-gray-900">#{user.id} - {user.name}</div>
-                        <div className="text-xs text-gray-600 mt-1">{user.email}</div>
+                        <div className="font-medium text-sm text-gray-900">{user.email}</div>
+                        <div className="text-xs text-gray-600 mt-1">Type: {user.type}</div>
+                        <div className="text-xs text-gray-600">Created: {formatDate(user.createdAt)}</div>
                         <div className="mt-2">
-                            <StatusBadge status={user.status} />
+                            <StatusBadge isActive={user.isActive} />
                         </div>
                     </div>
                 </div>
                 <div className="flex gap-2 pt-2">
-                    <button className="flex-1 flex items-center justify-center gap-1 h-8 border border-gray-600 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-xs">
-                        <UserX size={12} />
-                        <span>Block</span>
+                    <button 
+                        onClick={() => onBlockUser(user.id, user.isActive)}
+                        className={`flex-1 flex items-center justify-center gap-1 h-8 border rounded-lg transition-colors text-xs ${
+                            user.isActive 
+                                ? 'border-red-600 text-red-700 hover:bg-red-50' 
+                                : 'border-green-600 text-green-700 hover:bg-green-50'
+                        }`}
+                    >
+                        {user.isActive ? <Ban size={12} /> : <CheckCircle2 size={12} />}
+                        <span>{user.isActive ? 'Block' : 'Unblock'}</span>
                     </button>
                     <button className="flex-1 flex items-center justify-center gap-1 h-8 bg-[#c11747] text-white hover:bg-red-700 rounded-lg transition-colors text-xs">
                         <Trash2 size={12} />
@@ -80,16 +85,24 @@ const UserRow: React.FC<{ user: User }> = ({ user }) => {
 
             {/* Tablet & Desktop Layout (>= md) */}
             <div className="hidden md:grid md:grid-cols-12 items-center w-full px-4 py-3 gap-2">
-                <div className="col-span-1 text-sm">{user.id}</div>
-                <div className="col-span-4 truncate text-sm" title={user.email}>{user.email}</div>
-                <div className="col-span-3 truncate text-sm">{user.name}</div>
+                <div className="col-span-1 text-sm">{index + 1}</div>
+                <div className="col-span-3 truncate text-sm" title={user.email}>{user.email}</div>
+                <div className="col-span-2 truncate text-sm">{user.type}</div>
+                <div className="col-span-2 text-xs text-gray-600">{formatDate(user.createdAt)}</div>
                 <div className="col-span-2 flex justify-start">
-                    <StatusBadge status={user.status} />
+                    <StatusBadge isActive={user.isActive} />
                 </div>
                 <div className="col-span-2 flex justify-center items-center gap-2">
-                    <button className="flex items-center justify-center gap-1 w-20 h-8 border border-gray-600 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-xs">
-                        <UserX size={12} />
-                        <span>Block</span>
+                    <button 
+                        onClick={() => onBlockUser(user.id, user.isActive)}
+                        className={`flex items-center justify-center gap-1 w-20 h-8 border rounded-lg transition-colors text-xs ${
+                            user.isActive 
+                                ? 'border-red-600 text-red-700 hover:bg-red-50' 
+                                : 'border-green-600 text-green-700 hover:bg-green-50'
+                        }`}
+                    >
+                        {user.isActive ? <Ban size={12} /> : <CheckCircle2 size={12} />}
+                        <span>{user.isActive ? 'Block' : 'Unblock'}</span>
                     </button>
                     <button className="flex items-center justify-center gap-1 w-20 h-8 bg-[#c11747] text-white hover:bg-red-700 rounded-lg transition-colors text-xs">
                         <Trash2 size={12} />
@@ -251,13 +264,201 @@ const AddUserModal: React.FC<{ isOpen: boolean; onClose: () => void; onUserAdded
 // Komponen utama untuk Halaman Kelola User
 const UserPage = (): React.ReactElement => {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [users, setUsers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { accessToken } = useAuth();
 
     const openModal = () => setIsModalOpen(true);
     const closeModal = () => setIsModalOpen(false);
-    const handleUserAdded = () => {
-        // TODO: Refresh user list from API
-        console.log('User added, refreshing list...');
+
+    // Fetch users from API
+    const fetchUsers = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch('http://34.101.143.2:3000/api/user', {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch users');
+            }
+
+            const result = await response.json();
+            setUsers(result.data || []);
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            Swal.fire({
+                title: 'Error!',
+                text: 'Gagal memuat data user.',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        } finally {
+            setLoading(false);
+        }
     };
+
+    // Helper function for fetch with timeout and retry
+    const fetchWithTimeout = async (url: string, options: RequestInit, timeout = 10000) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        
+        try {
+            const response = await fetch(url, {
+                ...options,
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            return response;
+        } catch (error) {
+            clearTimeout(timeoutId);
+            if (error instanceof Error && error.name === 'AbortError') {
+                throw new Error('Request timeout - Server tidak merespons dalam waktu yang ditentukan');
+            }
+            throw error;
+        }
+    };
+
+    const fetchWithRetry = async (url: string, options: RequestInit, retries = 3) => {
+        for (let i = 0; i < retries; i++) {
+            try {
+                const response = await fetchWithTimeout(url, options, 15000);
+                return response;
+            } catch (error) {
+                if (i === retries - 1) {
+                    throw error;
+                }
+                
+                // Wait before retry (exponential backoff)
+                const delay = Math.min(1000 * Math.pow(2, i), 5000);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    };
+
+    // Block/Unblock user
+    const handleBlockUser = async (userId: string, isCurrentlyActive: boolean) => {
+        try {
+            // Validate userId
+            if (!userId || typeof userId !== 'string') {
+                throw new Error('Invalid user ID');
+            }
+            
+            const action = isCurrentlyActive ? 'block' : 'unblock';
+            const result = await Swal.fire({
+                title: 'Konfirmasi',
+                text: `Apakah Anda yakin ingin ${action} user ini?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: isCurrentlyActive ? '#d33' : '#3085d6',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: `Ya, ${action}`,
+                cancelButtonText: 'Batal'
+            });
+
+            if (result.isConfirmed) {
+                // Show loading
+                Swal.fire({
+                    title: 'Memproses...',
+                    text: 'Sedang mengubah status user',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                const url = `http://34.101.143.2:3000/api/user/${userId}/block`;
+                const requestOptions = {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                };
+                
+                const response = await fetchWithRetry(url, requestOptions);
+
+                if (!response.ok) {
+                    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorMessage;
+                    } catch (parseError) {
+                        console.error('Error parsing error response:', parseError);
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const responseData = await response.json();
+                
+                // Update local state using the response data
+                if (responseData.data && typeof responseData.data.isActive === 'boolean') {
+                    setUsers(prevUsers => 
+                        prevUsers.map(user => 
+                            user.id === userId 
+                                ? { ...user, isActive: responseData.data.isActive }
+                                : user
+                        )
+                    );
+                } else {
+                    // Fallback: toggle the current state
+                    const newStatus = !isCurrentlyActive;
+                    setUsers(prevUsers => 
+                        prevUsers.map(user => 
+                            user.id === userId 
+                                ? { ...user, isActive: newStatus }
+                                : user
+                        )
+                    );
+                }
+
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: responseData.message || `User berhasil di${action}.`,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+        } catch (error) {
+            console.error('Error blocking/unblocking user:', error);
+            
+            let errorMessage = 'Gagal mengubah status user.';
+            if (error instanceof Error) {
+                if (error.message.includes('timeout') || error.message.includes('AbortError')) {
+                    errorMessage = 'Request timeout - Server tidak merespons. Coba lagi nanti.';
+                } else if (error.message.includes('fetch') || error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+                    errorMessage = 'Koneksi ke server gagal. Periksa koneksi internet Anda dan coba lagi.';
+                } else if (error.message.includes('CORS')) {
+                    errorMessage = 'Masalah CORS - Hubungi administrator sistem.';
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+            
+            Swal.fire({
+                title: 'Error!',
+                text: errorMessage,
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        }
+    };
+
+    const handleUserAdded = () => {
+        fetchUsers(); // Refresh user list after adding new user
+    };
+
+    // Fetch users on component mount
+    useEffect(() => {
+        if (accessToken) {
+            console.log('Access Token:', accessToken);
+            fetchUsers();
+        }
+    }, [accessToken]);
 
     return (
         <div className="bg-none p-2 sm:p-4 lg:p-6 xl:p-8 w-full min-h-screen flex flex-col gap-4 sm:gap-6">
@@ -289,8 +490,9 @@ const UserPage = (): React.ReactElement => {
                     {/* Tablet & Desktop Header */}
                     <div className="hidden md:grid md:grid-cols-12 w-full px-4 py-3 text-sm font-bold text-[#430d4b] gap-2">
                         <div className="col-span-1">No</div>
-                        <div className="col-span-4">Email</div>
-                        <div className="col-span-3">Nama</div>
+                        <div className="col-span-3">Email</div>
+                        <div className="col-span-2">Type</div>
+                        <div className="col-span-2">Created</div>
                         <div className="col-span-2">Status</div>
                         <div className="col-span-2 text-center">Aksi</div>
                     </div>
@@ -298,16 +500,25 @@ const UserPage = (): React.ReactElement => {
 
                 {/* Body Tabel - Scrollable */}
                 <div className="overflow-y-auto max-h-[60vh] sm:max-h-[65vh] lg:max-h-[70vh]">
-                    {/* Merender setiap baris data menggunakan .map() */}
-                    {userData.map(user => (
-                        <UserRow key={user.id} user={user} />
-                    ))}
+                    {loading ? (
+                        <div className="flex justify-center items-center py-8">
+                            <div className="w-8 h-8 border-2 border-[#430d4b] border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    ) : users.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            Tidak ada data user
+                        </div>
+                    ) : (
+                        users.map((user, index) => (
+                            <UserRow key={user.id} user={user} index={index} onBlockUser={handleBlockUser} />
+                        ))
+                    )}
                 </div>
 
                 {/* Footer Tabel dengan Paginasi - Fixed */}
                 <div className="sticky bottom-0 bg-white border-t border-gray-200 flex flex-col sm:flex-row justify-between sm:justify-end items-center gap-2 sm:gap-4 p-3 sm:p-4">
                     <div className="text-xs sm:text-sm text-gray-600">
-                        Showing {userData.length} of {userData.length} entries
+                        Showing {users.length} of {users.length} entries
                     </div>
                     <div className="flex items-center gap-2 sm:gap-4">
                         <span className="text-xs sm:text-sm text-gray-600">Page</span>

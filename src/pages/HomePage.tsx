@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useAuth } from '../contexts/AuthContext';
+import Swal from 'sweetalert2';
 
 // Definisikan path aset. Pastikan file-file ini ada di folder /public proyek Anda.
 const profilImage = "/profil.png";
@@ -9,29 +11,120 @@ const pageDropdownIcon = "/PageDropdownIcon.svg";
 const userListIcon = "/user-icon.svg";
 const userPageDropdownIcon = "/UserPageDropdownIcon.svg";
 
+// Interface untuk tipe data dashboard
+interface DashboardData {
+    admin_profile: {
+        name: string;
+        email: string;
+        status: string;
+        profile_picture: string | null;
+    };
+    device_status: {
+        running: {
+            text: string;
+            value: string;
+        };
+        ready: {
+            text: string;
+            value: string;
+        };
+    };
+    total_income: {
+        title: string;
+        timeframe: string;
+        total: number;
+        chart_data: Array<{
+            day: string;
+            income: number;
+        }>;
+    };
+    registered_users: {
+        title: string;
+        users: Array<{
+            id: string;
+            name: string;
+            email: string;
+            status: string;
+            profile_picture: string | null;
+        }>;
+        total_count: number;
+    };
+}
+
 // --- Komponen untuk Total Pemasukan ---
-const TotalPemasukanChart = () => {
-    const chartData = [
-        { day: "Sen", height: "h-[50px]", isHighlighted: false },
-        { day: "Sel", height: "h-[32px]", isHighlighted: false },
-        { day: "Rab", height: "h-[71px]", isHighlighted: false },
-        { day: "Kam", height: "h-[59px]", isHighlighted: false },
-        { day: "Jum", height: "h-[86px]", isHighlighted: true },
-        { day: "Sab", height: "h-[3px]", isHighlighted: false },
-        { day: "Min", height: "h-[3px]", isHighlighted: false },
-    ];
+interface TotalPemasukanChartProps {
+    incomeData?: DashboardData['total_income'];
+}
+
+const TotalPemasukanChart: React.FC<TotalPemasukanChartProps> = ({ incomeData }) => {
+    // Fungsi untuk mengkonversi data income ke format chart
+    const getChartData = () => {
+        if (!incomeData?.chart_data) {
+            // Data dummy jika API belum tersedia
+            return [
+                { day: "Sen", height: "h-[50px]", isHighlighted: false, income: 150000 },
+                { day: "Sel", height: "h-[32px]", isHighlighted: false, income: 100000 },
+                { day: "Rab", height: "h-[71px]", isHighlighted: false, income: 220000 },
+                { day: "Kam", height: "h-[59px]", isHighlighted: false, income: 180000 },
+                { day: "Jum", height: "h-[86px]", isHighlighted: true, income: 300000 },
+                { day: "Sab", height: "h-[3px]", isHighlighted: false, income: 50000 },
+                { day: "Min", height: "h-[3px]", isHighlighted: false, income: 30000 },
+            ];
+        }
+
+        const maxIncome = Math.max(...incomeData.chart_data.map(d => d.income));
+        const dayMapping: { [key: string]: string } = {
+            'Senin': 'Sen',
+            'Selasa': 'Sel', 
+            'Rabu': 'Rab',
+            'Kamis': 'Kam',
+            'Jumat': 'Jum',
+            'Sabtu': 'Sab',
+            'Minggu': 'Min'
+        };
+
+        return incomeData.chart_data.map((data, index) => {
+            const heightPercentage = (data.income / maxIncome) * 100;
+            const height = Math.max(heightPercentage * 0.86, 3); // Min 3px height
+            const isHighlighted = data.income === maxIncome;
+            
+            return {
+                day: dayMapping[data.day] || data.day.substring(0, 3),
+                height: `h-[${Math.round(height)}px]`,
+                isHighlighted,
+                income: data.income
+            };
+        });
+    };
+
+    const chartData = getChartData();
+    
+    // Format total income
+    const formatCurrency = (amount: number) => {
+        if (amount >= 1000000) {
+            return `${(amount / 1000000).toFixed(1)}M`;
+        } else if (amount >= 1000) {
+            return `${(amount / 1000).toFixed(0)}K`;
+        }
+        return amount.toString();
+    };
+
+    const totalIncome = incomeData?.total || 1280000;
 
     return (
         <div className="w-full flex flex-col items-start gap-4 p-4 bg-white rounded-lg">
             <div className="flex items-center justify-between w-full">
                 <div className="inline-flex items-center gap-4">
                     <img className="relative w-5 h-5" alt="Group Icon" src={groupIcon} />
-                    <div className="font-bold text-[#7c347e] text-sm">Total Pemasukan</div>
+                    <div className="font-bold text-[#7c347e] text-sm">{incomeData?.title || 'Total Pemasukan'}</div>
                 </div>
                 <div className="inline-flex items-center gap-2 p-2 border border-solid border-gray-300 rounded-lg cursor-pointer">
-                    <div className="font-normal text-gray-500 text-sm">Minggu Ini</div>
+                    <div className="font-normal text-gray-500 text-sm">{incomeData?.timeframe || 'Minggu Ini'}</div>
                     <img className="relative w-3 h-2" alt="Dropdown Icon" src={dropdownIcon} />
                 </div>
+            </div>
+            <div className="text-lg font-bold text-[#430d4b]">
+                Rp {totalIncome.toLocaleString('id-ID')}
             </div>
             <div className="flex w-full">
                 <div className="flex flex-col justify-between text-sm text-gray-700 text-right pr-2 w-[42px] flex-shrink-0">
@@ -62,7 +155,12 @@ const TotalPemasukanChart = () => {
 };
 
 // --- Komponen untuk Daftar Perangkat Berjalan ---
-const RunningDeviceList = () => {
+interface RunningDeviceListProps {
+    deviceStatus?: DashboardData['device_status'];
+}
+
+const RunningDeviceList: React.FC<RunningDeviceListProps> = ({ deviceStatus }) => {
+    // Data dummy untuk device list (karena API response tidak menyediakan detail device list)
     const deviceListData = [
         { id: 1, name: 'Device 1', category: 'Kategori 1', timeLeft: '90 menit' },
         { id: 2, name: 'Device 2', category: 'Kategori A', timeLeft: '45 menit' },
@@ -77,13 +175,18 @@ const RunningDeviceList = () => {
         { id: 11, name: 'Device 11', category: 'Kategori I', timeLeft: '80 menit' },
         { id: 12, name: 'Device 12', category: 'Kategori I', timeLeft: '80 menit' },
     ];
+    
+    // Ambil jumlah device yang sedang berjalan dari API jika tersedia
+    const runningDevicesText = deviceStatus?.running?.text || 'Daftar Perangkat Sedang Berjalan';
+    const runningDevicesValue = deviceStatus?.running?.value || '35/50';
     return (
         // Container luar tetap memiliki tinggi tetap
         <div className="flex flex-col flex-1 gap-4 p-4 bg-white rounded-lg h-[672px] min-w-0">
             <div className="flex items-center justify-between w-full">
                 <div className="inline-flex items-center gap-4">
                     <img className="w-4 h-4" alt="Device List Icon" src={deviceListIcon} />
-                    <div className="font-bold text-[#7c347e] text-sm">Daftar Perangkat Sedang Berjalan</div>
+                    <div className="font-bold text-[#7c347e] text-sm">{runningDevicesText}</div>
+                    <div className="text-sm text-gray-600">({runningDevicesValue})</div>
                 </div>
                 <div className="inline-flex items-center gap-3">
                     <span className="text-sm text-gray-500">Page</span>
@@ -124,21 +227,29 @@ const RunningDeviceList = () => {
 
 
 // --- Komponen untuk Daftar User Terdaftar ---
-const RegisteredUserList = () => {
-    const registeredUsersData = [
-        { id: 1, email: "nattasharomanov@gmail.com", name: "Black Widow", status: "Online" },
-        { id: 2, email: "steve.rogers@shield.com", name: "Captain America", status: "Offline" },
-        { id: 3, email: "tony.stark@stark.com", name: "Iron Man", status: "Online" },
-        { id: 4, email: "bruce.banner@avengers.com", name: "Hulk", status: "Offline" },
-        { id: 5, email: "thor.odinson@asgard.com", name: "Thor", status: "Online" },
+interface RegisteredUserListProps {
+    usersData?: DashboardData['registered_users'];
+}
+
+const RegisteredUserList: React.FC<RegisteredUserListProps> = ({ usersData }) => {
+    const registeredUsersData = usersData?.users || [
+        { id: "1", email: "nattasharomanov@gmail.com", name: "Black Widow", status: "Online", profile_picture: null },
+        { id: "2", email: "steve.rogers@shield.com", name: "Captain America", status: "Offline", profile_picture: null },
+        { id: "3", email: "tony.stark@stark.com", name: "Iron Man", status: "Online", profile_picture: null },
+        { id: "4", email: "bruce.banner@avengers.com", name: "Hulk", status: "Offline", profile_picture: null },
+        { id: "5", email: "thor.odinson@asgard.com", name: "Thor", status: "Online", profile_picture: null },
     ];
+    
+    const totalCount = usersData?.total_count || registeredUsersData.length;
+    const title = usersData?.title || 'User yang Terdaftar';
 
     return (
         <div className="flex flex-col flex-1 gap-2 p-4 bg-white rounded-lg h-auto min-w-0">
             <div className="flex items-center justify-between w-full mb-4">
                 <div className="inline-flex items-center gap-4">
                     <img className="w-4 h-4" alt="User List Icon" src={userListIcon} />
-                    <div className="font-bold text-[#7c347e] text-sm">User yang Terdaftar</div>
+                    <div className="font-bold text-[#7c347e] text-sm">{title}</div>
+                    <div className="text-sm text-gray-600">({totalCount} total)</div>
                 </div>
                 <div className="inline-flex items-center gap-3">
                     <span className="text-sm text-gray-500">Page</span>
@@ -161,7 +272,7 @@ const RegisteredUserList = () => {
                             {registeredUsersData.map((user, index) => (
                                 <div key={user.id} className="w-full">
                                     <div className="flex items-center p-3 w-full text-xs text-gray-800">
-                                        <div className="w-8 flex-shrink-0">{user.id}</div>
+                                        <div className="w-8 flex-shrink-0">{index + 1}</div>
                                         <div className="flex-1 px-2 truncate">{user.email}</div>
                                         <div className="w-32 truncate">{user.name}</div>
                                         <div className="w-24 flex-shrink-0 flex justify-center">
@@ -190,6 +301,58 @@ const RegisteredUserList = () => {
 
 // --- Komponen Utama Halaman ---
 const HomePage = (): JSX.Element => {
+    const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const { accessToken } = useAuth();
+
+    // Fetch dashboard data from API
+    const fetchDashboardData = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch('http://34.101.143.2:3000/api/dashboard/admin', {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch dashboard data');
+            }
+
+            const result = await response.json();
+            console.log('Dashboard data:', result);
+            setDashboardData(result.data || result);
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error);
+            Swal.fire({
+                title: 'Error!',
+                text: 'Gagal memuat data dashboard. Menggunakan data dummy.',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (accessToken) {
+            fetchDashboardData();
+        }
+    }, [accessToken]);
+
+    if (loading) {
+        return (
+            <div className="bg-neutral-100 flex justify-center items-center min-h-screen w-full">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#430d4b] mx-auto mb-4"></div>
+                    <p className="text-gray-600">Memuat data dashboard...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="bg-neutral-100 flex justify-center min-h-screen w-full">
             <div className="flex flex-col w-full max-w-screen-xl items-start gap-4 sm:gap-6 lg:gap-9">
@@ -207,12 +370,17 @@ const HomePage = (): JSX.Element => {
                             alt="User Profile"
                             src={profilImage}
                         />
-                        <div className="flex flex-col flex-1 sm:w-[141px] items-start gap-4 sm:gap-6">
-                            <div className="flex flex-col items-start gap-2 sm:gap-3 self-stretch w-full">
-                                <div className="font-bold text-[#430d4b] text-sm sm:text-base">Joe Natania</div>
-                                <div className="font-normal text-[#6869ac] text-xs sm:text-sm">joenatania@gmail.com</div>
+                        <div className="flex flex-col flex-1 sm:w-[141px] items-start gap-3 sm:gap-4">
+                            <div className="flex flex-col items-start gap-1.5 sm:gap-2 self-stretch w-full">
+                                <div className="font-bold text-[#430d4b] text-sm sm:text-base leading-tight">{dashboardData?.admin_profile?.name || 'Admin'}</div>
+                                <div className="font-normal text-[#6869ac] text-xs sm:text-sm leading-tight">{dashboardData?.admin_profile?.email || 'admin@example.com'}</div>
+                                <div className="text-xs text-gray-500 leading-tight">
+                                    Status: <span className={`font-medium ${dashboardData?.admin_profile?.status === 'Online' ? 'text-green-600' : 'text-gray-600'}`}>
+                                        {dashboardData?.admin_profile?.status || 'Online'}
+                                    </span>
+                                </div>
                             </div>
-                            <div className="flex items-center justify-center gap-2.5 p-2 self-stretch w-full bg-[#430d4b] rounded-lg cursor-pointer">
+                            <div className="flex items-center justify-center gap-2.5 px-3 py-2.5 self-stretch w-full bg-[#430d4b] rounded-lg cursor-pointer mt-2">
                                 <div className="font-normal text-white text-xs sm:text-sm">Edit</div>
                             </div>
                         </div>
@@ -220,20 +388,20 @@ const HomePage = (): JSX.Element => {
                     <div className="flex flex-col sm:flex-row h-auto sm:h-[145px] items-stretch sm:items-center gap-2 sm:gap-3 p-2 sm:p-4 relative bg-white rounded-xl w-full max-w-full overflow-hidden">
                         <div className="flex flex-col w-full sm:flex-1 sm:max-w-[249px] items-start gap-4 sm:gap-6 px-3 py-4 sm:px-4 sm:py-5 relative rounded-lg border border-solid border-[#f5d5e0] min-w-0">
                             <div className="relative self-stretch mt-[-1.00px] [font-family:'Lato-Bold',Helvetica] font-bold text-[#430d4b] text-xs sm:text-sm md:text-base tracking-[0] leading-[normal]">
-                                Perangkat sedang berjalan
+                                {dashboardData?.device_status?.running?.text || 'Perangkat sedang berjalan'}
                             </div>
                             <p className="relative self-stretch rotate-[0.09deg] [font-family:'Lato-Regular',Helvetica] font-normal text-transparent text-sm sm:text-base tracking-[0] leading-[normal]">
-                                <span className="text-[#f3ae00]">35</span>
-                                <span className="text-[#7c347e]">/50</span>
+                                <span className="text-[#f3ae00]">{dashboardData?.device_status?.running?.value?.split('/')[0] || '35'}</span>
+                                <span className="text-[#7c347e]">/{dashboardData?.device_status?.running?.value?.split('/')[1] || '50'}</span>
                             </p>
                         </div>
                         <div className="flex flex-col w-full sm:flex-1 sm:max-w-[249px] items-start gap-4 sm:gap-6 px-3 py-4 sm:px-4 sm:py-5 relative rounded-lg border border-solid border-[#f5d5e0] min-w-0">
                             <div className="relative self-stretch mt-[-1.00px] [font-family:'Lato-Bold',Helvetica] font-bold text-[#430d4b] text-xs sm:text-sm md:text-base tracking-[0] leading-[normal]">
-                                Perangkat siap digunakan
+                                {dashboardData?.device_status?.ready?.text || 'Perangkat siap digunakan'}
                             </div>
                             <p className="relative self-stretch rotate-[0.09deg] [font-family:'Lato-Regular',Helvetica] font-normal text-transparent text-sm sm:text-base tracking-[0] leading-[normal]">
-                                <span className="text-[#f3ae00]">15</span>
-                                <span className="text-[#7c347e]">/50</span>
+                                <span className="text-[#f3ae00]">{dashboardData?.device_status?.ready?.value?.split('/')[0] || '15'}</span>
+                                <span className="text-[#7c347e]">/{dashboardData?.device_status?.ready?.value?.split('/')[1] || '50'}</span>
                             </p>
                         </div>
                         <div className="flex flex-col w-full sm:flex-1 sm:max-w-[249px] items-start gap-4 sm:gap-6 px-3 py-4 sm:px-4 sm:py-5 relative rounded-lg border border-solid border-[#f5d5e0] min-w-0">
@@ -253,13 +421,13 @@ const HomePage = (): JSX.Element => {
                     
                     {/* PERBAIKAN: Lebar kolom diatur ke 425px di layar xl ke atas */}
                     <div className="w-full xl:w-[425px] flex-shrink-0">
-                        <RunningDeviceList />
+                        <RunningDeviceList deviceStatus={dashboardData?.device_status} />
                     </div>
 
                     {/* Kolom Kanan: Grafik dan Daftar User */}
                     <div className="w-full flex flex-col gap-5 flex-1 min-w-0">
-                        <TotalPemasukanChart />
-                        <RegisteredUserList />
+                        <TotalPemasukanChart incomeData={dashboardData?.total_income} />
+                        <RegisteredUserList usersData={dashboardData?.registered_users} />
                     </div>
                 </div>
             </div>
