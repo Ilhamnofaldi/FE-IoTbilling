@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 // 1. Mengimpor ikon yang relevan dari lucide-react
-import { Wallet, Calendar, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Wallet, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Swal from 'sweetalert2';
 
@@ -109,17 +109,19 @@ const IncomeRow: React.FC<{ record: IncomeHistory; index: number }> = ({ record,
 };
 
 // Komponen utama untuk Halaman Riwayat Pemasukan
-const RiwayatPage = (): JSX.Element => {
+const RiwayatPage = () => {
     const [transactions, setTransactions] = useState<IncomeHistory[]>([]);
-    const [devices, setDevices] = useState<Device[]>([]);
-    const [categories, setCategories] = useState<Category[]>([]);
+
+
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [totalItems, setTotalItems] = useState(0);
+    const [entriesPerPage, setEntriesPerPage] = useState(10);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [totalIncome, setTotalIncome] = useState(0);
+    const [isCalculatingTotalIncome, setIsCalculatingTotalIncome] = useState(false);
     const { accessToken } = useAuth();
 
     // Fungsi untuk mengubah data API menjadi format yang sesuai dengan tabel
@@ -152,11 +154,11 @@ const RiwayatPage = (): JSX.Element => {
     };
 
     // Fetch transactions from API
-    const fetchTransactions = async (page: number = 1, start_date?: string, end_date?: string) => {
+    const fetchTransactions = async (page: number = 1, start_date?: string, end_date?: string, limit: number = entriesPerPage) => {
         try {
             const params = new URLSearchParams({
                 page: page.toString(),
-                limit: '10'
+                limit: limit.toString()
             });
             
             if (start_date) params.append('start_date', start_date);
@@ -243,11 +245,57 @@ const RiwayatPage = (): JSX.Element => {
         }
     };
 
+    const handleEntriesChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newEntriesPerPage = parseInt(e.target.value, 10);
+        setEntriesPerPage(newEntriesPerPage);
+        setCurrentPage(1); // Reset to first page
+        loadData(1, startDate, endDate, newEntriesPerPage);
+    };
+
+    const fetchAllTransactionsForIncome = async (start_date?: string, end_date?: string) => {
+        setIsCalculatingTotalIncome(true);
+        try {
+            // Fetch the first page to get pagination details
+            const firstPageResult = await fetchTransactions(1, start_date, end_date);
+            if (!firstPageResult || !firstPageResult.data.pagination) {
+                setTotalIncome(0);
+                return;
+            }
+
+            const { totalPages, totalItems } = firstPageResult.data.pagination;
+            let allTransactions = firstPageResult.data.transactions;
+
+            // If there are more pages, fetch them all
+            if (totalPages > 1) {
+                const promises = [];
+                for (let i = 2; i <= totalPages; i++) {
+                    promises.push(fetchTransactions(i, start_date, end_date));
+                }
+                const results = await Promise.all(promises);
+                results.forEach(result => {
+                    if (result && result.data.transactions) {
+                        allTransactions.push(...result.data.transactions);
+                    }
+                });
+            }
+
+            // Calculate total income from all fetched transactions
+            const total = allTransactions.reduce((sum, transaction) => sum + transaction.cost, 0);
+            setTotalIncome(total);
+
+        } catch (error) {
+            console.error('Error calculating total income:', error);
+            setTotalIncome(0); // Reset on error
+        } finally {
+            setIsCalculatingTotalIncome(false);
+        }
+    };
+
     // Load data function
-    const loadData = async (page: number = 1, start_date?: string, end_date?: string) => {
+    const loadData = async (page: number = 1, start_date?: string, end_date?: string, limit: number = entriesPerPage) => {
         setLoading(true);
         try {
-            const transactionResult = await fetchTransactions(page, start_date, end_date);
+            const transactionResult = await fetchTransactions(page, start_date, end_date, limit);
             
             if (transactionResult && transactionResult.data.transactions) {
                 const transformedTransactions = transformTransactionData(transactionResult.data.transactions);
@@ -259,9 +307,8 @@ const RiwayatPage = (): JSX.Element => {
                 setTotalPages(pagination?.totalPages || 1);
                 setTotalItems(pagination?.totalItems || transformedTransactions.length);
                 
-                // Hitung total income
-                const total = transformedTransactions.reduce((sum, record) => sum + record.price, 0);
-                setTotalIncome(total);
+                // Total income is now calculated separately
+                // We don't update it here anymore to avoid showing partial totals 
             }
         } finally {
             setLoading(false);
@@ -271,22 +318,24 @@ const RiwayatPage = (): JSX.Element => {
     // Handle page change
     const handlePageChange = (page: number) => {
         if (page >= 1 && page <= totalPages) {
-            loadData(page, startDate, endDate);
+            loadData(page, startDate, endDate, entriesPerPage);
         }
     };
 
     // Handle date filter
     const handleDateFilter = () => {
         setCurrentPage(1);
-        loadData(1, startDate, endDate);
+        loadData(1, startDate, endDate, entriesPerPage);
+        fetchAllTransactionsForIncome(startDate, endDate);
     };
 
     // Fetch data saat komponen dimount tanpa filter tanggal
     useEffect(() => {
         if (accessToken) {
-            loadData(1); // Load semua data tanpa filter tanggal
+            loadData(1, undefined, undefined, entriesPerPage); // Load first page for the table
+            fetchAllTransactionsForIncome(); // Calculate total income from all data
         }
-    }, [accessToken]);
+    }, [accessToken, entriesPerPage]);
 
     return (
         <div className="bg-none p-2 sm:p-4 lg:p-6 xl:p-8 w-full min-h-screen flex flex-col gap-4 sm:gap-6">
@@ -303,12 +352,19 @@ const RiwayatPage = (): JSX.Element => {
                 
                 {/* Header Tabel dengan Total Pemasukan dan Filter */}
                 <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 gap-4">
-                        <div className="inline-flex items-center gap-2">
-                            <Wallet size={20} className="text-[#430d4b]"/>
-                            <span className="font-bold text-lg text-[#430d4b]">
-                                Total: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(totalIncome)}
-                            </span>
+                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between p-4 gap-4">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <Wallet size={20} className="text-[#430d4b] flex-shrink-0"/>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 min-w-0">
+                                <span className="font-bold text-base sm:text-lg text-[#430d4b] whitespace-nowrap">
+                                    Total Pemasukan:
+                                </span>
+                                <span className="font-bold text-base sm:text-lg text-[#430d4b] truncate">
+                                    {isCalculatingTotalIncome 
+                                        ? 'Menghitung...'
+                                        : new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(totalIncome)}
+                                </span>
+                            </div>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                             <div className="flex gap-2">
@@ -368,9 +424,23 @@ const RiwayatPage = (): JSX.Element => {
                 </div>
 
                 {/* Footer Tabel dengan Paginasi - Fixed */}
-                <div className="sticky bottom-0 bg-white border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-4 p-3 sm:p-4">
+                <div className="sticky bottom-0 bg-white border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 p-3 sm:p-4">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                        <span>Show</span>
+                        <select 
+                            value={entriesPerPage}
+                            onChange={handleEntriesChange}
+                            className="px-2 py-1 border border-gray-300 rounded-lg text-xs sm:text-sm"
+                        >
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span>entries</span>
+                    </div>
                     <div className="text-xs sm:text-sm text-gray-600">
-                        Showing {transactions.length} of {totalItems} entries
+                        Showing {transactions.length > 0 ? ((currentPage - 1) * entriesPerPage) + 1 : 0} to {Math.min(currentPage * entriesPerPage, totalItems)} of {totalItems} entries
                     </div>
                     <div className="flex items-center gap-2 sm:gap-4">
                         <button
@@ -385,7 +455,7 @@ const RiwayatPage = (): JSX.Element => {
                         </span>
                         <button
                             onClick={() => handlePageChange(currentPage + 1)}
-                            disabled={currentPage === totalPages}
+                            disabled={currentPage === totalPages || totalPages === 0}
                             className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                         >
                             <ChevronRight size={16} />

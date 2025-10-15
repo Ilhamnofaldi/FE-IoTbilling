@@ -119,9 +119,9 @@ const DeviceRow: React.FC<{ device: DeviceOverview; index: number }> = ({ device
 };
 
 // Komponen utama untuk Halaman Perangkat
-export const PerangkatPage = (): JSX.Element => {
+export const PerangkatPage = () => {
     const [devices, setDevices] = useState<DeviceOverview[]>([]);
-    const [categories, setCategories] = useState<Category[]>([]);
+
     const [loading, setLoading] = useState(true);
     const { accessToken } = useAuth();
 

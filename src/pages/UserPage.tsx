@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { UserPlus, UserX, Trash2, CheckCircle2, XCircle, Ban, ChevronDown, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import Swal from 'sweetalert2';
+import { apiClient, type ApiResponse } from '../utils/apiClient';
+import { ErrorHandler, ErrorType } from '../utils/errorHandler';
 
 // 2. Definisikan tipe data yang jelas untuk User berdasarkan API response
 type User = {
@@ -41,7 +43,7 @@ const StatusBadge: React.FC<{ isActive: boolean }> = ({ isActive }) => {
 };
 
 // Komponen untuk satu baris data user
-const UserRow: React.FC<{ user: User; index: number; onBlockUser: (userId: string, isActive: boolean) => void }> = ({ user, index, onBlockUser }) => {
+const UserRow: React.FC<{ user: User; index: number; onBlockUser: (userId: string, isActive: boolean) => void; isLoading: boolean }> = ({ user, index, onBlockUser, isLoading }) => {
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('id-ID', {
             year: 'numeric',
@@ -67,14 +69,21 @@ const UserRow: React.FC<{ user: User; index: number; onBlockUser: (userId: strin
                 <div className="flex gap-2 pt-2">
                     <button 
                         onClick={() => onBlockUser(user.id, user.isActive)}
+                        disabled={isLoading}
                         className={`flex-1 flex items-center justify-center gap-1 h-8 border rounded-lg transition-colors text-xs ${
-                            user.isActive 
-                                ? 'border-red-600 text-red-700 hover:bg-red-50' 
-                                : 'border-green-600 text-green-700 hover:bg-green-50'
+                            isLoading 
+                                ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                                : user.isActive 
+                                    ? 'border-red-600 text-red-700 hover:bg-red-50' 
+                                    : 'border-green-600 text-green-700 hover:bg-green-50'
                         }`}
                     >
-                        {user.isActive ? <Ban size={12} /> : <CheckCircle2 size={12} />}
-                        <span>{user.isActive ? 'Block' : 'Unblock'}</span>
+                        {isLoading ? (
+                            <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            user.isActive ? <Ban size={12} /> : <CheckCircle2 size={12} />
+                        )}
+                        <span>{isLoading ? 'Loading...' : (user.isActive ? 'Block' : 'Unblock')}</span>
                     </button>
                     <button className="flex-1 flex items-center justify-center gap-1 h-8 bg-[#c11747] text-white hover:bg-red-700 rounded-lg transition-colors text-xs">
                         <Trash2 size={12} />
@@ -95,14 +104,21 @@ const UserRow: React.FC<{ user: User; index: number; onBlockUser: (userId: strin
                 <div className="col-span-2 flex justify-center items-center gap-2">
                     <button 
                         onClick={() => onBlockUser(user.id, user.isActive)}
+                        disabled={isLoading}
                         className={`flex items-center justify-center gap-1 w-20 h-8 border rounded-lg transition-colors text-xs ${
-                            user.isActive 
-                                ? 'border-red-600 text-red-700 hover:bg-red-50' 
-                                : 'border-green-600 text-green-700 hover:bg-green-50'
+                            isLoading 
+                                ? 'border-gray-300 text-gray-400 cursor-not-allowed'
+                                : user.isActive 
+                                    ? 'border-red-600 text-red-700 hover:bg-red-50' 
+                                    : 'border-green-600 text-green-700 hover:bg-green-50'
                         }`}
                     >
-                        {user.isActive ? <Ban size={12} /> : <CheckCircle2 size={12} />}
-                        <span>{user.isActive ? 'Block' : 'Unblock'}</span>
+                        {isLoading ? (
+                            <div className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            user.isActive ? <Ban size={12} /> : <CheckCircle2 size={12} />
+                        )}
+                        <span>{isLoading ? 'Loading...' : (user.isActive ? 'Block' : 'Unblock')}</span>
                     </button>
                     <button className="flex items-center justify-center gap-1 w-20 h-8 bg-[#c11747] text-white hover:bg-red-700 rounded-lg transition-colors text-xs">
                         <Trash2 size={12} />
@@ -150,7 +166,7 @@ const AddUserModal: React.FC<{ isOpen: boolean; onClose: () => void; onUserAdded
                 throw new Error('Failed to add user');
             }
 
-            const result = await response.json();
+            await response.json();
             
             Swal.fire({
                 title: 'Berhasil!',
@@ -262,10 +278,12 @@ const AddUserModal: React.FC<{ isOpen: boolean; onClose: () => void; onUserAdded
 };
 
 // Komponen utama untuk Halaman Kelola User
-const UserPage = (): React.ReactElement => {
+const UserPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingUsers, setLoadingUsers] = useState<Set<string>>(new Set());
+    const [lastClickTime, setLastClickTime] = useState<{ [key: string]: number }>({});
     const { accessToken } = useAuth();
 
     const openModal = () => setIsModalOpen(true);
@@ -300,43 +318,7 @@ const UserPage = (): React.ReactElement => {
         }
     };
 
-    // Helper function for fetch with timeout and retry
-    const fetchWithTimeout = async (url: string, options: RequestInit, timeout = 10000) => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
-        
-        try {
-            const response = await fetch(url, {
-                ...options,
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            return response;
-        } catch (error) {
-            clearTimeout(timeoutId);
-            if (error instanceof Error && error.name === 'AbortError') {
-                throw new Error('Request timeout - Server tidak merespons dalam waktu yang ditentukan');
-            }
-            throw error;
-        }
-    };
 
-    const fetchWithRetry = async (url: string, options: RequestInit, retries = 3) => {
-        for (let i = 0; i < retries; i++) {
-            try {
-                const response = await fetchWithTimeout(url, options, 15000);
-                return response;
-            } catch (error) {
-                if (i === retries - 1) {
-                    throw error;
-                }
-                
-                // Wait before retry (exponential backoff)
-                const delay = Math.min(1000 * Math.pow(2, i), 5000);
-                await new Promise(resolve => setTimeout(resolve, delay));
-            }
-        }
-    };
 
     // Block/Unblock user
     const handleBlockUser = async (userId: string, isCurrentlyActive: boolean) => {
@@ -346,7 +328,20 @@ const UserPage = (): React.ReactElement => {
                 throw new Error('Invalid user ID');
             }
             
-            const action = isCurrentlyActive ? 'block' : 'unblock';
+            // Debounce mechanism - prevent multiple rapid clicks
+            const now = Date.now();
+            const lastClick = lastClickTime[userId] || 0;
+            const debounceDelay = 1000; // 1 second
+            
+            if (now - lastClick < debounceDelay) {
+                console.log('🚫 Click ignored due to debounce mechanism');
+                return;
+            }
+            
+            // Update last click time
+            setLastClickTime(prev => ({ ...prev, [userId]: now }));
+            
+            const action = isCurrentlyActive ? 'blokir' : 'buka blokir';
             const result = await Swal.fire({
                 title: 'Konfirmasi',
                 text: `Apakah Anda yakin ingin ${action} user ini?`,
@@ -359,6 +354,9 @@ const UserPage = (): React.ReactElement => {
             });
 
             if (result.isConfirmed) {
+                // Set loading state for this specific user
+                setLoadingUsers(prev => new Set([...prev, userId]));
+                
                 // Show loading
                 Swal.fire({
                     title: 'Memproses...',
@@ -370,41 +368,104 @@ const UserPage = (): React.ReactElement => {
                 });
 
                 const url = `http://34.101.143.2:3000/api/user/${userId}/block`;
+                
+                // Simplified request options matching Swagger exactly
                 const requestOptions = {
                     method: 'PATCH',
                     headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    }
+                        'accept': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    mode: 'cors' as RequestMode
                 };
                 
-                const response = await fetchWithRetry(url, requestOptions);
-
-                if (!response.ok) {
-                    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-                    try {
-                        const errorData = await response.json();
-                        errorMessage = errorData.message || errorMessage;
-                    } catch (parseError) {
-                        console.error('Error parsing error response:', parseError);
-                    }
-                    throw new Error(errorMessage);
-                }
-
-                const responseData = await response.json();
+                console.group('🔄 DEBUG: Block/Unblock User Request');
+                console.log('📍 URL:', url);
+                console.log('🔧 Method:', requestOptions.method);
+                console.log('📋 Headers:', requestOptions.headers);
+                console.log('📦 Body:', requestOptions.body || 'No body');
+                console.log('📝 Content-Type:', requestOptions.headers?.['Content-Type'] || 'Not set');
+                console.log('🎫 Access Token (first 20 chars):', accessToken?.substring(0, 20) + '...');
+                console.log('🔑 Token length:', accessToken ? accessToken.length : 0);
+                console.log('🔑 Token type check:', accessToken ? (accessToken.startsWith('Bearer ') ? 'Has Bearer prefix' : 'No Bearer prefix') : 'No token');
+                console.log('👤 User ID:', userId);
+                console.log('📊 Current Status:', isCurrentlyActive ? 'Active' : 'Blocked');
+                console.log('🎯 Target Action:', action);
                 
-                // Update local state using the response data
-                if (responseData.data && typeof responseData.data.isActive === 'boolean') {
-                    setUsers(prevUsers => 
-                        prevUsers.map(user => 
-                            user.id === userId 
-                                ? { ...user, isActive: responseData.data.isActive }
-                                : user
-                        )
-                    );
-                } else {
-                    // Fallback: toggle the current state
+                // Token validation
+                if (!accessToken) {
+                    console.warn('⚠️ No access token available - this will likely cause authentication failure');
+                } else if (accessToken.length < 10) {
+                    console.warn('⚠️ Access token seems too short - might be invalid');
+                }
+                
+                console.groupEnd();
+                
+                console.log('🚀 Making API request using centralized client...');
+                
+                const endpoint = `/api/user/${userId}/block`;
+                const headers = {
+                    'Authorization': `Bearer ${accessToken}`
+                };
+                
+                const response: ApiResponse = await apiClient.patch(endpoint, {}, headers);
+                
+                if (!response.success) {
+                    throw new Error(response.error || 'API request failed');
+                }
+                
+                console.log('✅ API request successful:', response);
+                
+                // Update local state based on response
+                const updatedUsers = users.map(user => {
+                    if (user.id === userId) {
+                        const newStatus = response.data?.isActive !== undefined 
+                            ? response.data.isActive 
+                            : !isCurrentlyActive;
+                            
+                        console.log('🔄 Updating user status:', {
+                            userId,
+                            oldStatus: user.isActive,
+                            newStatus,
+                            source: response.data?.isActive !== undefined ? 'server_response' : 'local_toggle'
+                        });
+                        
+                        return { ...user, isActive: newStatus };
+                    }
+                    return user;
+                });
+                
+                setUsers(updatedUsers);
+                
+                // Clear loading state for this user
+                setLoadingUsers(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(userId);
+                    return newSet;
+                });
+                
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: response.message || `User berhasil di${action}.`,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+        } catch (error) {
+                const appError = ErrorHandler.categorizeError(error);
+                ErrorHandler.logError(appError, 'handleBlockUser');
+                
+                // Clear loading state for this user
+                setLoadingUsers(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(userId);
+                    return newSet;
+                });
+                
+                // Show optimistic update for network/timeout errors
+                if (ErrorHandler.shouldShowOptimisticUpdate(appError)) {
+                    console.log('🔄 Implementing optimistic update as fallback...');
                     const newStatus = !isCurrentlyActive;
                     setUsers(prevUsers => 
                         prevUsers.map(user => 
@@ -413,38 +474,25 @@ const UserPage = (): React.ReactElement => {
                                 : user
                         )
                     );
-                }
-
-                Swal.fire({
-                    title: 'Berhasil!',
-                    text: responseData.message || `User berhasil di${action}.`,
-                    icon: 'success',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-            }
-        } catch (error) {
-            console.error('Error blocking/unblocking user:', error);
-            
-            let errorMessage = 'Gagal mengubah status user.';
-            if (error instanceof Error) {
-                if (error.message.includes('timeout') || error.message.includes('AbortError')) {
-                    errorMessage = 'Request timeout - Server tidak merespons. Coba lagi nanti.';
-                } else if (error.message.includes('fetch') || error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-                    errorMessage = 'Koneksi ke server gagal. Periksa koneksi internet Anda dan coba lagi.';
-                } else if (error.message.includes('CORS')) {
-                    errorMessage = 'Masalah CORS - Hubungi administrator sistem.';
+                    
+                    Swal.fire({
+                        title: 'Koneksi Bermasalah',
+                        text: `Status user telah diubah secara lokal ke ${newStatus ? 'aktif' : 'diblokir'}. Perubahan akan disinkronkan saat koneksi pulih.`,
+                        icon: 'warning',
+                        timer: 3000,
+                        showConfirmButton: false
+                    });
                 } else {
-                    errorMessage = error.message;
+                    // Show appropriate error message based on error type
+                    const iconType = appError.type === ErrorType.AUTHENTICATION_ERROR ? 'error' : 'warning';
+                    
+                    Swal.fire({
+                        title: 'Gagal Mengubah Status',
+                        text: appError.userMessage,
+                        icon: iconType,
+                        confirmButtonText: 'OK'
+                    });
                 }
-            }
-            
-            Swal.fire({
-                title: 'Error!',
-                text: errorMessage,
-                icon: 'error',
-                confirmButtonText: 'OK'
-            });
         }
     };
 
@@ -510,7 +558,13 @@ const UserPage = (): React.ReactElement => {
                         </div>
                     ) : (
                         users.map((user, index) => (
-                            <UserRow key={user.id} user={user} index={index} onBlockUser={handleBlockUser} />
+                            <UserRow 
+                                key={user.id} 
+                                user={user} 
+                                index={index} 
+                                onBlockUser={handleBlockUser}
+                                isLoading={loadingUsers.has(user.id)}
+                            />
                         ))
                     )}
                 </div>

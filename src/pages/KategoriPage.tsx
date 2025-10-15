@@ -445,7 +445,7 @@ const AddCategoryModal: React.FC<{ isOpen: boolean; onClose: () => void; onCateg
 };
 
 // Komponen utama halaman Kategori
-export const KategoriPage = (): JSX.Element => {
+export const KategoriPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);

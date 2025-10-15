@@ -58,7 +58,7 @@ const Sidebar: React.FC = () => {
 
       {/* Title */}
       {!isCollapsed && (
-        <div className="relative self-stretch mt-[-1.00px] font-bold text-[#220636] text-lg sm:text-2xl tracking-[0] leading-[normal] font-['Lato'] mb-8 sm:mb-16 ml-2">
+        <div className="relative self-stretch mt-[-1.00px] font-bold text-[#220636] text-lg sm:text-2xl tracking-[0] leading-[normal] font-['Lato'] mb-8 sm:mb-8 ml-2">
           Billing System
         </div>
       )}
